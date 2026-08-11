@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Roomly</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div id="app">
+
+    <!-- HOME -->
+    <section id="home-screen" class="screen">
+      <div class="home-card">
+        <div class="logo">Roomly</div>
+        <p class="subtitle">Chat with friends. Just share a room code.</p>
+
+        <input id="name-input" class="input" maxlength="24"
+          placeholder="Your display name">
+
+        <button id="create-btn" class="primary-btn">
+          Create a room
+        </button>
+
+        <div class="divider">
+          <span>or</span>
+        </div>
+
+        <input id="room-code-input" class="input"
+          maxlength="12"
+          placeholder="Enter room code">
+
+        <button id="join-btn" class="secondary-btn">
+          Join a room
+        </button>
+
+        <p id="home-error" class="error"></p>
+      </div>
+    </section>
+
+
+    <!-- CHAT -->
+    <section id="chat-screen" class="screen hidden">
+
+      <header class="chat-header">
+        <div>
+          <div class="room-title">
+            Room <span id="room-code"></span>
+          </div>
+          <div id="member-count" class="member-count">
+            0 members
+          </div>
+        </div>
+
+        <div class="header-actions">
+          <button id="copy-btn" class="header-btn">
+            Copy code
+          </button>
+
+          <button id="leave-btn" class="header-btn danger">
+            Leave
+          </button>
+        </div>
+      </header>
+
+
+      <main class="chat-layout">
+
+        <aside class="members-panel">
+          <div class="panel-title">
+            Members
+          </div>
+
+          <div id="members-list"></div>
+        </aside>
+
+
+        <section class="chat-area">
+
+          <div id="messages" class="messages">
+            <div class="empty-chat">
+              <div class="empty-icon">💬</div>
+              <h2>Welcome to Roomly</h2>
+              <p>Send the first message.</p>
+            </div>
+          </div>
+
+          <form id="message-form" class="message-form">
+            <input
+              id="message-input"
+              autocomplete="off"
+              maxlength="2000"
+              placeholder="Message the room..."
+            >
+
+            <button type="submit" class="send-btn">
+              ➤
+            </button>
+          </form>
+
+        </section>
+
+      </main>
+
+    </section>
+
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
