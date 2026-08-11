@@ -108,6 +108,18 @@ const leaveBtn =
 const toast =
   document.getElementById("toast");
 
+const usernameScreen =
+  document.getElementById("username-screen");
+
+const usernameInput =
+  document.getElementById("username-input");
+
+const usernameBtn =
+  document.getElementById("username-btn");
+
+const usernameError =
+  document.getElementById("username-error");
+
 // -------------------------
 // HELPERS
 // -------------------------
@@ -252,6 +264,65 @@ guestBtn.addEventListener(
   }
 );
 
+//--------
+// IDK
+//--------
+async function getRoomlyProfile(userId) {
+  const { data, error } =
+    await supabase
+      .from("profiles")
+      .select("username")
+      .eq("id", userId)
+      .maybeSingle();
+
+  if (error) {
+    console.error(
+      "PROFILE ERROR:",
+      error
+    );
+
+    throw error;
+  }
+
+  return data;
+}
+
+function showUsernameSetup() {
+  loginScreen.classList.add("hidden");
+  homeScreen.classList.add("hidden");
+  chatScreen.classList.add("hidden");
+
+  usernameScreen.classList.remove(
+    "hidden"
+  );
+
+  usernameInput.value = "";
+  usernameError.textContent = "";
+
+  usernameInput.focus();
+}
+
+async function finishLogin(user) {
+  currentUser = user;
+  isGuest = false;
+
+  const profile =
+    await getRoomlyProfile(user.id);
+
+  if (!profile) {
+    showUsernameSetup();
+    return;
+  }
+
+  nameInput.value =
+    profile.username;
+
+  accountLabel.textContent =
+    `Signed in as ${profile.username}`;
+
+  showHome();
+}
+
 // -------------------------
 // CHECK AUTH
 // -------------------------
@@ -264,22 +335,13 @@ async function checkAuth() {
   } = await supabase.auth.getSession();
 
   if (session?.user) {
-    currentUser =
-      session.user;
+    currentUser = session.user;
 
-    isGuest = false;
+  isGuest = false;
 
-    accountLabel.textContent =
-      `Signed in as ${getAccountName(
-        currentUser
-      )}`;
+  await finishLogin(currentUser);
 
-    nameInput.value =
-      getAccountName(currentUser);
-
-    showHome();
-
-    return;
+  return;
   }
 
   loginScreen.classList.remove(
@@ -288,7 +350,7 @@ async function checkAuth() {
 }
 
 supabase.auth.onAuthStateChange(
-  (event, session) => {
+  async (event, session) => {
     if (
       session?.user &&
       (
@@ -301,17 +363,9 @@ supabase.auth.onAuthStateChange(
 
       isGuest = false;
 
-      accountLabel.textContent =
-        `Signed in as ${getAccountName(
-          currentUser
-        )}`;
-
-      if (!nameInput.value) {
-        nameInput.value =
-          getAccountName(currentUser);
-      }
-
-      showHome();
+      await finishLogin(
+        currentUser
+      );
     }
   }
 );
@@ -955,6 +1009,93 @@ logoutBtn.addEventListener(
 
     nameInput.value = "";
     roomCodeInput.value = "";
+  }
+);
+
+usernameBtn.addEventListener(
+  "click",
+  async () => {
+
+    const username =
+      usernameInput.value.trim();
+
+    usernameError.textContent = "";
+
+    if (!username) {
+      usernameError.textContent =
+        "Choose a username.";
+
+      return;
+    }
+
+    if (username.length < 3) {
+      usernameError.textContent =
+        "Username must be at least 3 characters.";
+
+      return;
+    }
+
+    if (
+      !/^[A-Za-z0-9_-]+$/.test(username)
+    ) {
+      usernameError.textContent =
+        "Use only letters, numbers, _ or -.";
+
+      return;
+    }
+
+    if (!currentUser) {
+      usernameError.textContent =
+        "You're not signed in.";
+
+      return;
+    }
+
+    usernameBtn.disabled = true;
+
+    try {
+      const { error } =
+        await supabase
+          .from("profiles")
+          .insert({
+            id: currentUser.id,
+            username
+          });
+
+      if (error) {
+
+        if (
+          error.code === "23505"
+        ) {
+          throw new Error(
+            "That username is already taken."
+          );
+        }
+
+        throw error;
+      }
+
+      nameInput.value =
+        username;
+
+      accountLabel.textContent =
+        `Signed in as ${username}`;
+
+      showHome();
+
+    } catch (error) {
+      console.error(
+        "USERNAME ERROR:",
+        error
+      );
+
+      usernameError.textContent =
+        error.message ||
+        "Couldn't create your username.";
+
+    } finally {
+      usernameBtn.disabled = false;
+    }
   }
 );
 
