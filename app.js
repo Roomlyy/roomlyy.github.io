@@ -235,13 +235,13 @@ joinBtn.addEventListener("click", async () => {
 
     await joinRoom(room, name);
 
-  } catch (error) {
-    console.error(error);
+    } catch (error) {
+    console.error("JOIN ERROR:", error);
 
     showError(
-      error.message === "Room not found."
-        ? "That room doesn't exist."
-        : "Couldn't join the room."
+      error.message ||
+      error.details ||
+      "Couldn't join the room."
     );
   }
 
