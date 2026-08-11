@@ -1,504 +1,889 @@
 import { createClient } from
-  "https://esm.sh/@supabase/supabase-js@2";
+"https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL =
-  "https://erdyjokgrmulwluggnpo.supabase.co";
+"https://erdyjokgrmulwluggnpo.supabase.co";
 
 const SUPABASE_KEY =
-  "sb_publishable_XdhdLs6Inom_KfAklu7ucg_jfvgkoo3";
+"sb_publishable_XdhdLs6Inom_KfAklu7ucg_jfvgkoo3";
 
 const supabase = createClient(
-  SUPABASE_URL,
-  SUPABASE_KEY
+SUPABASE_URL,
+SUPABASE_KEY
 );
-
 
 // -------------------------
 // STATE
 // -------------------------
 
 let sessionId =
-  localStorage.getItem("roomly_session");
+localStorage.getItem("roomly_guest_session");
 
-if (!sessionId) {
-  sessionId =
-    crypto.randomUUID();
-
-  localStorage.setItem(
-    "roomly_session",
-    sessionId
-  );
-}
-
+let currentUser = null;
 let currentRoom = null;
 let currentName = null;
 let realtimeChannel = null;
-
+let isGuest = false;
 
 // -------------------------
 // ELEMENTS
 // -------------------------
 
+const loginScreen =
+document.getElementById("login-screen");
+
 const homeScreen =
-  document.getElementById("home-screen");
+document.getElementById("home-screen");
 
 const chatScreen =
-  document.getElementById("chat-screen");
+document.getElementById("chat-screen");
 
-const nameInput =
-  document.getElementById("name-input");
+const discordBtn =
+document.getElementById("discord-btn");
 
-const roomCodeInput =
-  document.getElementById("room-code-input");
+const githubBtn =
+document.getElementById("github-btn");
 
-const createBtn =
-  document.getElementById("create-btn");
+const guestBtn =
+document.getElementById("guest-btn");
 
-const joinBtn =
-  document.getElementById("join-btn");
+const logoutBtn =
+document.getElementById("logout-btn");
+
+const loginError =
+document.getElementById("login-error");
 
 const homeError =
-  document.getElementById("home-error");
+document.getElementById("home-error");
+
+const nameInput =
+document.getElementById("name-input");
+
+const roomCodeInput =
+document.getElementById("room-code-input");
+
+const createBtn =
+document.getElementById("create-btn");
+
+const joinBtn =
+document.getElementById("join-btn");
+
+const accountLabel =
+document.getElementById("account-label");
 
 const roomCode =
-  document.getElementById("room-code");
+document.getElementById("room-code");
 
 const memberCount =
-  document.getElementById("member-count");
+document.getElementById("member-count");
 
 const membersList =
-  document.getElementById("members-list");
+document.getElementById("members-list");
 
 const messages =
-  document.getElementById("messages");
+document.getElementById("messages");
 
 const messageForm =
-  document.getElementById("message-form");
+document.getElementById("message-form");
 
 const messageInput =
-  document.getElementById("message-input");
+document.getElementById("message-input");
 
 const copyBtn =
-  document.getElementById("copy-btn");
+document.getElementById("copy-btn");
 
 const leaveBtn =
-  document.getElementById("leave-btn");
+document.getElementById("leave-btn");
 
 const toast =
-  document.getElementById("toast");
-
+document.getElementById("toast");
 
 // -------------------------
-// HELPERS
+// GUEST SESSION
 // -------------------------
 
-function makeRoomCode() {
-  const chars =
-    "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+if (!sessionId) {
 
-  let result = "";
+sessionId =
+crypto.randomUUID();
 
-  for (let i = 0; i < 8; i++) {
-    result += chars[
-      Math.floor(Math.random() * chars.length)
-    ];
+localStorage.setItem(
+"roomly_guest_session",
+sessionId
+);
+}
+
+// -------------------------
+// AUTH
+// -------------------------
+
+async function startOAuth(provider) {
+
+loginError.textContent = "";
+
+const { error } =
+await supabase.auth.signInWithOAuth({
+provider,
+
+```
+  options: {
+    redirectTo:
+      window.location.origin +
+      window.location.pathname
   }
+});
+```
 
-  return result.slice(0, 4) +
-    "-" +
-    result.slice(4);
+if (error) {
+console.error(error);
+
+```
+loginError.textContent =
+  error.message;
+```
+
+}
 }
 
+discordBtn.addEventListener(
+"click",
+() => startOAuth("discord")
+);
 
-function showError(message) {
-  homeError.textContent = message;
+githubBtn.addEventListener(
+"click",
+() => startOAuth("github")
+);
+
+guestBtn.addEventListener(
+"click",
+() => {
+
+```
+isGuest = true;
+
+currentUser = null;
+
+accountLabel.textContent =
+  "You're using Roomly as a guest.";
+
+showHome();
+```
+
+}
+);
+
+// -------------------------
+// CHECK AUTH SESSION
+// -------------------------
+
+async function checkAuth() {
+
+const {
+data: {
+session
+}
+} = await supabase.auth.getSession();
+
+if (session?.user) {
+
+```
+currentUser =
+  session.user;
+
+isGuest = false;
+
+accountLabel.textContent =
+  `Signed in as ${
+    getAccountName(session.user)
+  }`;
+
+showHome();
+```
+
+} else {
+
+```
+loginScreen.classList.remove(
+  "hidden"
+);
+```
+
+}
 }
 
+supabase.auth.onAuthStateChange(
+async (event, session) => {
 
-function showToast(message) {
-  toast.textContent = message;
-  toast.classList.add("show");
+```
+if (
+  event === "SIGNED_IN" &&
+  session?.user
+) {
 
-  setTimeout(() => {
-    toast.classList.remove("show");
-  }, 2000);
+  currentUser =
+    session.user;
+
+  isGuest = false;
+
+  accountLabel.textContent =
+    `Signed in as ${
+      getAccountName(session.user)
+    }`;
+
+  showHome();
+}
+```
+
+}
+);
+
+function getAccountName(user) {
+
+const metadata =
+user.user_metadata || {};
+
+return (
+metadata.user_name ||
+metadata.preferred_username ||
+metadata.name ||
+metadata.full_name ||
+user.email?.split("@")[0] ||
+"User"
+);
 }
 
+// -------------------------
+// SHOW HOME
+// -------------------------
 
-function getInitial(name) {
-  return name
-    .trim()
-    .charAt(0)
-    .toUpperCase() || "?";
+function showHome() {
+
+loginScreen.classList.add(
+"hidden"
+);
+
+chatScreen.classList.add(
+"hidden"
+);
+
+homeScreen.classList.remove(
+"hidden"
+);
+
+if (
+!nameInput.value
+) {
+
+```
+if (currentUser) {
+
+  nameInput.value =
+    getAccountName(currentUser);
+
 }
+```
 
+}
+}
 
 // -------------------------
 // CREATE ROOM
 // -------------------------
 
-createBtn.addEventListener("click", async () => {
-  const name =
-    nameInput.value.trim();
+createBtn.addEventListener(
+"click",
+async () => {
 
-  if (!name) {
-    showError("Enter a display name first.");
-    return;
+```
+const enteredName =
+  nameInput.value.trim();
+
+if (!enteredName) {
+
+  showHomeError(
+    "Enter a display name first."
+  );
+
+  return;
+}
+
+createBtn.disabled = true;
+
+try {
+
+  let code;
+  let room;
+
+  const identity =
+    getIdentity();
+
+  for (let i = 0; i < 10; i++) {
+
+    code =
+      makeRoomCode();
+
+    const result =
+      await supabase
+        .from("rooms")
+        .insert({
+          code,
+          owner_id: identity
+        })
+        .select()
+        .single();
+
+    if (!result.error) {
+
+      room =
+        result.data;
+
+      break;
+    }
   }
 
-  createBtn.disabled = true;
-  showError("");
+  if (!room) {
 
-  try {
-    let code;
-    let room;
-
-    for (let i = 0; i < 10; i++) {
-      code = makeRoomCode();
-
-      const result =
-        await supabase
-          .from("rooms")
-          .insert({
-            code,
-            owner_id: sessionId
-          })
-          .select()
-          .single();
-
-      if (!result.error) {
-        room = result.data;
-        break;
-      }
-    }
-
-    if (!room) {
-      throw new Error(
-        "Couldn't generate a room."
-      );
-    }
-
-    await joinRoom(room, name);
-
-  } catch (error) {
-    console.error(error);
-    showError(
+    throw new Error(
       "Couldn't create the room."
     );
   }
 
-  createBtn.disabled = false;
-});
+  await joinRoom(
+    room,
+    formatDisplayName(
+      enteredName
+    )
+  );
 
+} catch (error) {
+
+  console.error(error);
+
+  showHomeError(
+    error.message ||
+    "Couldn't create the room."
+  );
+}
+
+createBtn.disabled = false;
+```
+
+}
+);
 
 // -------------------------
 // JOIN ROOM
 // -------------------------
 
-joinBtn.addEventListener("click", async () => {
-  const name =
-    nameInput.value.trim();
+joinBtn.addEventListener(
+"click",
+async () => {
 
-  const code =
-    roomCodeInput.value
-      .trim()
-      .toUpperCase();
+```
+const enteredName =
+  nameInput.value.trim();
 
-  if (!name) {
-    showError("Enter a display name first.");
-    return;
-  }
+const code =
+  roomCodeInput.value
+    .trim()
+    .toUpperCase();
 
-  if (!code) {
-    showError("Enter a room code.");
-    return;
-  }
+if (!enteredName) {
 
-  joinBtn.disabled = true;
-  showError("");
+  showHomeError(
+    "Enter a display name first."
+  );
 
-  try {
-    const { data: room, error } =
-      await supabase
-        .from("rooms")
-        .select("*")
-        .eq("code", code)
-        .maybeSingle();
+  return;
+}
 
-    if (error) throw error;
+if (!code) {
 
-    if (!room) {
-      throw new Error(
-        "Room not found."
-      );
-    }
+  showHomeError(
+    "Enter a room code."
+  );
 
-    await joinRoom(room, name);
+  return;
+}
 
-    } catch (error) {
-    console.error("JOIN ERROR:", error);
+joinBtn.disabled = true;
 
-    showError(
-      error.message ||
-      error.details ||
-      "Couldn't join the room."
+try {
+
+  const {
+    data: room,
+    error
+  } =
+    await supabase
+      .from("rooms")
+      .select("*")
+      .eq("code", code)
+      .maybeSingle();
+
+  if (error)
+    throw error;
+
+  if (!room) {
+
+    throw new Error(
+      "Room not found."
     );
   }
 
-  joinBtn.disabled = false;
-});
+  await joinRoom(
+    room,
+    formatDisplayName(
+      enteredName
+    )
+  );
 
+} catch (error) {
+
+  console.error(
+    "JOIN ERROR:",
+    error
+  );
+
+  showHomeError(
+    error.message ||
+    "Couldn't join the room."
+  );
+}
+
+joinBtn.disabled = false;
+```
+
+}
+);
 
 // -------------------------
 // JOIN ROOM FUNCTION
 // -------------------------
 
-async function joinRoom(room, name) {
-  const { error } =
-    await supabase
-      .from("members")
-      .upsert({
-        room_id: room.id,
-        session_id: sessionId,
-        display_name: name
-      }, {
-        onConflict:
-          "room_id,session_id"
-      });
+async function joinRoom(
+room,
+name
+) {
 
-  if (error) throw error;
+const identity =
+getIdentity();
 
-  currentRoom = room;
-  currentName = name;
+const {
+error
+} =
+await supabase
+.from("members")
+.upsert({
+room_id:
+room.id,
 
-  roomCode.textContent =
-    room.code;
+```
+    session_id:
+      identity,
 
-  homeScreen.classList.add("hidden");
-  chatScreen.classList.remove("hidden");
+    display_name:
+      name
 
-  await loadMessages();
-  await loadMembers();
+  }, {
+    onConflict:
+      "room_id,session_id"
+  });
+```
 
-  subscribeToRoom();
+if (error)
+throw error;
 
-  messageInput.focus();
+currentRoom =
+room;
+
+currentName =
+name;
+
+roomCode.textContent =
+room.code;
+
+homeScreen.classList.add(
+"hidden"
+);
+
+chatScreen.classList.remove(
+"hidden"
+);
+
+await loadMessages();
+
+await loadMembers();
+
+subscribeToRoom();
+
+messageInput.focus();
 }
 
+// -------------------------
+// IDENTITY
+// -------------------------
+
+function getIdentity() {
+
+if (currentUser) {
+
+```
+return currentUser.id;
+```
+
+}
+
+return sessionId;
+}
+
+function formatDisplayName(name) {
+
+if (isGuest) {
+
+```
+return `${name} (Guest)`;
+```
+
+}
+
+return name;
+}
 
 // -------------------------
-// LOAD MESSAGES
+// ROOM CODE
+// -------------------------
+
+function makeRoomCode() {
+
+const chars =
+"ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+let result = "";
+
+for (let i = 0; i < 8; i++) {
+
+```
+result +=
+  chars[
+    Math.floor(
+      Math.random() *
+      chars.length
+    )
+  ];
+```
+
+}
+
+return (
+result.slice(0, 4) +
+"-" +
+result.slice(4)
+);
+}
+
+// -------------------------
+// MESSAGES
 // -------------------------
 
 async function loadMessages() {
-  const { data, error } =
-    await supabase
-      .from("messages")
-      .select("*")
-      .eq("room_id", currentRoom.id)
-      .order("created_at", {
-        ascending: true
-      });
 
-  if (error) {
-    console.error(error);
-    return;
-  }
+const {
+data,
+error
+} =
+await supabase
+.from("messages")
+.select("*")
+.eq(
+"room_id",
+currentRoom.id
+)
+.order(
+"created_at",
+{
+ascending: true
+}
+);
 
-  messages.innerHTML = "";
+if (error) {
 
-  if (!data.length) {
-    showEmptyChat();
-    return;
-  }
+```
+console.error(error);
 
-  data.forEach(addMessage);
+return;
+```
 
-  scrollMessages();
 }
 
+messages.innerHTML = "";
 
-// -------------------------
-// ADD MESSAGE TO UI
-// -------------------------
+if (!data.length) {
+
+```
+showEmptyChat();
+
+return;
+```
+
+}
+
+data.forEach(
+addMessage
+);
+
+scrollMessages();
+}
 
 function addMessage(message) {
-  const empty =
-    messages.querySelector(
-      ".empty-chat"
-    );
 
-  if (empty) empty.remove();
+const empty =
+messages.querySelector(
+".empty-chat"
+);
 
-  const wrapper =
-    document.createElement("div");
+if (empty)
+empty.remove();
 
-  wrapper.className =
-    "message" +
-    (
-      message.session_id === sessionId
-        ? " mine"
-        : ""
-    );
+const wrapper =
+document.createElement(
+"div"
+);
 
-  const name =
-    document.createElement("div");
+wrapper.className =
+"message" +
+(
+message.session_id ===
+getIdentity()
+? " mine"
+: ""
+);
 
-  name.className =
-    "message-name";
+const name =
+document.createElement(
+"div"
+);
 
-  name.textContent =
-    message.display_name;
+name.className =
+"message-name";
 
-  const body =
-    document.createElement("div");
+name.textContent =
+message.display_name;
 
-  body.className =
-    "message-body";
+const body =
+document.createElement(
+"div"
+);
 
-  body.textContent =
-    message.content;
+body.className =
+"message-body";
 
-  wrapper.appendChild(name);
-  wrapper.appendChild(body);
+body.textContent =
+message.content;
 
-  messages.appendChild(wrapper);
+wrapper.appendChild(name);
 
-  scrollMessages();
+wrapper.appendChild(body);
+
+messages.appendChild(wrapper);
+
+scrollMessages();
 }
 
-
 function showEmptyChat() {
-  messages.innerHTML = `
-    <div class="empty-chat">
-      <div class="empty-icon">💬</div>
-      <h2>Welcome to Roomly</h2>
-      <p>Send the first message.</p>
-    </div>
+
+messages.innerHTML = `     <div class="empty-chat">       <div class="empty-icon">💬</div>       <h2>Welcome to Roomly</h2>       <p>Send the first message.</p>     </div>
   `;
 }
 
-
 function scrollMessages() {
-  messages.scrollTop =
-    messages.scrollHeight;
-}
 
+messages.scrollTop =
+messages.scrollHeight;
+}
 
 // -------------------------
 // SEND MESSAGE
 // -------------------------
 
 messageForm.addEventListener(
-  "submit",
-  async event => {
+"submit",
+async event => {
 
-    event.preventDefault();
+```
+event.preventDefault();
 
-    const content =
-      messageInput.value.trim();
+const content =
+  messageInput.value.trim();
 
-    if (!content || !currentRoom)
-      return;
+if (
+  !content ||
+  !currentRoom
+)
+  return;
 
-    messageInput.value = "";
+messageInput.value = "";
 
-    const { error } =
-      await supabase
-        .from("messages")
-        .insert({
-          room_id: currentRoom.id,
-          session_id: sessionId,
-          display_name: currentName,
-          content
-        });
+const {
+  error
+} =
+  await supabase
+    .from("messages")
+    .insert({
 
-    if (error) {
-      console.error(error);
-      showToast(
-        "Couldn't send message."
-      );
-    }
-  }
+      room_id:
+        currentRoom.id,
+
+      session_id:
+        getIdentity(),
+
+      display_name:
+        currentName,
+
+      content
+
+    });
+
+if (error) {
+
+  console.error(error);
+
+  showToast(
+    "Couldn't send message."
+  );
+}
+```
+
+}
 );
-
 
 // -------------------------
 // MEMBERS
 // -------------------------
 
 async function loadMembers() {
-  const { data, error } =
-    await supabase
-      .from("members")
-      .select("*")
-      .eq("room_id", currentRoom.id)
-      .order("joined_at");
 
-  if (error) {
-    console.error(error);
-    return;
-  }
+const {
+data,
+error
+} =
+await supabase
+.from("members")
+.select("*")
+.eq(
+"room_id",
+currentRoom.id
+)
+.order("joined_at");
 
-  membersList.innerHTML = "";
+if (error) {
 
-  data.forEach(member => {
-    const item =
-      document.createElement("div");
+```
+console.error(error);
 
-    item.className =
-      "member";
+return;
+```
 
-    const avatar =
-      document.createElement("div");
-
-    avatar.className =
-      "avatar";
-
-    avatar.textContent =
-      getInitial(member.display_name);
-
-    const info =
-      document.createElement("div");
-
-    const name =
-      document.createElement("div");
-
-    name.className =
-      "member-name";
-
-    name.textContent =
-      member.display_name;
-
-    info.appendChild(name);
-
-    if (
-      member.session_id ===
-      currentRoom.owner_id
-    ) {
-      const badge =
-        document.createElement("div");
-
-      badge.className =
-        "owner-badge";
-
-      badge.textContent =
-        "Owner";
-
-      info.appendChild(badge);
-    }
-
-    item.appendChild(avatar);
-    item.appendChild(info);
-
-    membersList.appendChild(item);
-  });
-
-  memberCount.textContent =
-    `${data.length} member` +
-    (data.length === 1 ? "" : "s");
 }
 
+membersList.innerHTML = "";
+
+data.forEach(
+member => {
+
+```
+  const item =
+    document.createElement(
+      "div"
+    );
+
+  item.className =
+    "member";
+
+  const avatar =
+    document.createElement(
+      "div"
+    );
+
+  avatar.className =
+    "avatar";
+
+  avatar.textContent =
+    getInitial(
+      member.display_name
+    );
+
+  const info =
+    document.createElement(
+      "div"
+    );
+
+  const name =
+    document.createElement(
+      "div"
+    );
+
+  name.className =
+    "member-name";
+
+  name.textContent =
+    member.display_name;
+
+  info.appendChild(name);
+
+  if (
+    member.session_id ===
+    currentRoom.owner_id
+  ) {
+
+    const badge =
+      document.createElement(
+        "div"
+      );
+
+    badge.className =
+      "owner-badge";
+
+    badge.textContent =
+      "Owner";
+
+    info.appendChild(
+      badge
+    );
+  }
+
+  item.appendChild(
+    avatar
+  );
+
+  item.appendChild(
+    info
+  );
+
+  membersList.appendChild(
+    item
+  );
+}
+```
+
+);
+
+memberCount.textContent =
+`${data.length} member` +
+(
+data.length === 1
+? ""
+: "s"
+);
+}
+
+function getInitial(name) {
+
+return name
+.trim()
+.charAt(0)
+.toUpperCase() || "?";
+}
 
 // -------------------------
 // REALTIME
@@ -506,107 +891,215 @@ async function loadMembers() {
 
 function subscribeToRoom() {
 
-  if (realtimeChannel) {
-    supabase.removeChannel(
-      realtimeChannel
-    );
-  }
+if (realtimeChannel) {
 
-  realtimeChannel =
-    supabase
-      .channel(
-        `room-${currentRoom.id}`
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "messages",
-          filter:
-            `room_id=eq.${currentRoom.id}`
-        },
-        payload => {
-          addMessage(payload.new);
-        }
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "members",
-          filter:
-            `room_id=eq.${currentRoom.id}`
-        },
-        () => {
-          loadMembers();
-        }
-      )
-      .subscribe();
+```
+supabase.removeChannel(
+  realtimeChannel
+);
+```
+
 }
 
+realtimeChannel =
+supabase
+.channel(
+`room-${currentRoom.id}`
+)
+
+```
+  .on(
+    "postgres_changes",
+    {
+      event: "INSERT",
+      schema: "public",
+      table: "messages",
+      filter:
+        `room_id=eq.${currentRoom.id}`
+    },
+    payload => {
+
+      addMessage(
+        payload.new
+      );
+    }
+  )
+
+  .on(
+    "postgres_changes",
+    {
+      event: "*",
+      schema: "public",
+      table: "members",
+      filter:
+        `room_id=eq.${currentRoom.id}`
+    },
+    () => {
+
+      loadMembers();
+    }
+  )
+
+  .subscribe();
+```
+
+}
 
 // -------------------------
-// COPY CODE
+// COPY
 // -------------------------
 
 copyBtn.addEventListener(
-  "click",
-  async () => {
+"click",
+async () => {
 
-    await navigator.clipboard.writeText(
-      currentRoom.code
-    );
-
-    showToast(
-      "Room code copied!"
-    );
-  }
+```
+await navigator.clipboard.writeText(
+  currentRoom.code
 );
 
+showToast(
+  "Room code copied!"
+);
+```
+
+}
+);
 
 // -------------------------
 // LEAVE
 // -------------------------
 
 leaveBtn.addEventListener(
-  "click",
-  async () => {
+"click",
+async () => {
 
-    if (!currentRoom)
-      return;
+```
+if (!currentRoom)
+  return;
 
-    await supabase
-      .from("members")
-      .delete()
-      .eq("room_id", currentRoom.id)
-      .eq("session_id", sessionId);
+await supabase
+  .from("members")
+  .delete()
+  .eq(
+    "room_id",
+    currentRoom.id
+  )
+  .eq(
+    "session_id",
+    getIdentity()
+  );
 
-    if (realtimeChannel) {
-      await supabase.removeChannel(
-        realtimeChannel
-      );
+if (realtimeChannel) {
 
-      realtimeChannel = null;
-    }
+  await supabase.removeChannel(
+    realtimeChannel
+  );
 
-    currentRoom = null;
-    currentName = null;
+  realtimeChannel =
+    null;
+}
 
-    chatScreen.classList.add(
-      "hidden"
-    );
+currentRoom =
+  null;
 
-    homeScreen.classList.remove(
-      "hidden"
-    );
+currentName =
+  null;
 
-    roomCodeInput.value = "";
-
-    showToast(
-      "You left the room."
-    );
-  }
+chatScreen.classList.add(
+  "hidden"
 );
- 
+
+homeScreen.classList.remove(
+  "hidden"
+);
+
+roomCodeInput.value = "";
+
+showToast(
+  "You left the room."
+);
+```
+
+}
+);
+
+// -------------------------
+// LOGOUT
+// -------------------------
+
+logoutBtn.addEventListener(
+"click",
+async () => {
+
+```
+await supabase.auth.signOut();
+
+currentUser =
+  null;
+
+currentName =
+  null;
+
+isGuest =
+  false;
+
+homeScreen.classList.add(
+  "hidden"
+);
+
+chatScreen.classList.add(
+  "hidden"
+);
+
+loginScreen.classList.remove(
+  "hidden"
+);
+```
+
+}
+);
+
+// -------------------------
+// HOME ERROR
+// -------------------------
+
+function showHomeError(message) {
+
+homeError.textContent =
+message;
+}
+
+// -------------------------
+// TOAST
+// -------------------------
+
+function showToast(message) {
+
+toast.textContent =
+message;
+
+toast.classList.add(
+"show"
+);
+
+setTimeout(
+() => {
+
+```
+  toast.classList.remove(
+    "show"
+  );
+
+},
+2000
+```
+
+);
+}
+
+// -------------------------
+// START
+// -------------------------
+
+checkAuth();
