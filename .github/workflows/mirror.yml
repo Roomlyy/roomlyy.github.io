@@ -14,11 +14,11 @@ jobs:
       - name: pianoorbit
         run: |
           git clone --mirror https://github.com/roomlyy/roomlyy.github.io.git pianoorbit_clone.git
-          cd roomlyy.github.io.git
+          cd pianoorbit_clone.git
           git push --mirror https://x-access-token:${{ secrets.MIRROR_TOKEN }}@github.com/pianoorbit/pianoorbit.github.io.git
 
       - name: swingquest
         run: |
           git clone --mirror https://github.com/roomlyy/roomlyy.github.io.git swingquest_clone.git
-          cd roomlyy.github.io.git
+          cd swingquest_clone.git
           git push --mirror https://x-access-token:${{ secrets.MIRROR_TOKEN_2 }}@github.com/swingquest/swingquest.github.io.git
