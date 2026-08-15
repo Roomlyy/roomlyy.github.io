@@ -16,4 +16,9 @@ jobs:
           git clone --mirror https://github.com/roomlyy/roomlyy.github.io.git roomlyy.github.io.git
           cd roomlyy.github.io.git
           git push --mirror https://x-access-token:${{ secrets.MIRROR_TOKEN }}@github.com/pianoorbit/pianoorbit.github.io.git
-          
+
+      - name: swingquest
+        run: |
+          git clone --mirror https://github.com/roomlyy/roomlyy.github.io.git roomlyy.github.io.git
+          cd roomlyy.github.io.git
+          git push --mirror https://x-access-token:${{ secrets.MIRROR_TOKEN }}@github.com/swingquest/swingquest.github.io.git
