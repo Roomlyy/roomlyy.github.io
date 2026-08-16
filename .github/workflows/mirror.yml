@@ -22,3 +22,9 @@ jobs:
           git clone --mirror https://github.com/roomlyy/roomlyy.github.io.git swingquest_clone.git
           cd swingquest_clone.git
           git push --mirror https://x-access-token:${{ secrets.MIRROR_TOKEN_2 }}@github.com/swingquest/swingquest.github.io.git
+
+      - name: writelearn
+        run: |
+          git clone --mirror https://github.com/roomlyy/roomlyy.github.io.git writelearn_clone.git
+          cd writelearn_clone.git
+          git push --mirror https://x-access-token:${{ secrets.MIRROR_TOKEN_3 }}@github.com/writelearn/writelearn.github.io.git
